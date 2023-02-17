@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+</head>
+<body>
+          <div
+        style="
+          width: 450px;
+          background: white;
+          padding: 16px;
+          border-radius: 3px;
+        "
+      >
+        <p style="font-weight: bold">Hi "${user.profile.firstName} ${user.profile.lastName}"</p>
+        <p style="color: gray">
+          Link to reset your password.
+        </p>
+        <a
+          href="${link}"
+          style="
+            text-decoration: none;
+            cursor: pointer;
+            display: inline-block;
+            text-align: center;
+            white-space: nowrap;
+            background: #0071e3;
+            color: #fff;
+            font-size: 12px;
+            line-height: 1.33337;
+            font-weight: 400;
+            letter-spacing: -0.01em;
+            min-width: 23px;
+            padding-left: 11px;
+            padding-right: 11px;
+            padding-top: 4px;
+            padding-bottom: 4px;
+            border-radius: 12px;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -khtml-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+          "
+          >Reset password</a
+        >
+        <p style="color: gray">Thanks! – The Onsent team</p>
+      </div>
+      <style>
+        * {
+          font-family: "Roboto", sans-serif;
+        }
+        a:hover {
+          opacity: 0.9;
+        }
+      </style>
+
+</body>
+</html>
