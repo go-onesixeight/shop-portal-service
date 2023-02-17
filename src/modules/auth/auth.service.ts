@@ -5,17 +5,19 @@ import { SharedService } from "src/shared/shared.service";
 import { InjectRepository } from "@nestjs/typeorm";
 import { DataSource, Repository } from "typeorm";
 import { Member } from "./entities/member.entity";
-import { IFromResponses } from "src/common/interfaces";
+import { IFromResponses, ISendMail } from "src/common/interfaces";
 import { ForgotPasswordDto } from "./dto/forgot-password.dto";
+import { MailService } from "src/mail/mail.service";
 
 @Injectable()
 export class AuthService {
   constructor(
     private sharedService: SharedService,
     private dataSource: DataSource,
+    private mailService: MailService,
     @InjectRepository(Member)
     private readonly memberRepository: Repository<Member>,
-  ) { }
+  ) {}
 
   async createMember(signupDto: SignupDto): Promise<IFromResponses> {
     const queryRunner = this.dataSource.createQueryRunner();
@@ -100,7 +102,7 @@ export class AuthService {
       const emailBase64 = this.sharedService.encryptBase64(emailEncrypt);
 
       const link = `http://app.xx.net/reset-password?email=${emailBase64}`;
-      const sendEmail = {
+      const sendMailTemplate: ISendMail = {
         email: email,
         text: "Reset Password",
         subject: "App",
@@ -157,6 +159,19 @@ export class AuthService {
         }
       </style>`,
       };
+
+      const sendMail = await this.mailService.sendMailWithSendGrid(
+        sendMailTemplate,
+      );
+
+      if (sendMail[0]?.statusCode === 202) {
+        return this.sharedService.returnResponse(
+          true,
+          HttpStatus.ACCEPTED,
+          this.sharedService.statusText(HttpStatus.ACCEPTED),
+          sendMail,
+        ) as IFromResponses;
+      }
     } catch (error) {
       const { message } = error as { message: string };
       Logger.log(`[${this.forgotPassword.name}] => error ${message}`);

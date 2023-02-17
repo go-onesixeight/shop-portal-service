@@ -5,6 +5,8 @@ import { ConfigModule } from "@nestjs/config";
 import { AuthModule } from "./modules/auth/auth.module";
 import { SharedModule } from "./shared/shared.module";
 import { TypeOrmModule } from "@nestjs/typeorm";
+import { MailModule } from "./mail/mail.module";
+import { Member } from "./modules/auth/entities/member.entity";
 
 @Module({
   imports: [
@@ -25,15 +27,15 @@ import { TypeOrmModule } from "@nestjs/typeorm";
         password: process.env.POSTGRES_PASSWORD,
         database: process.env.POSTGRES_DB,
         timezone: process.env.POSTGRES_TIMEZONE,
-        // entities: [MemberEntity],
-        autoLoadEntities: true,
+        entities: [Member],
         synchronize: true,
       }),
     }),
     AuthModule,
     SharedModule,
+    MailModule,
   ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule { }
+export class AppModule {}
