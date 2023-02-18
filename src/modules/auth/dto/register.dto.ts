@@ -1,6 +1,6 @@
 import { ApiProperty } from "@nestjs/swagger";
 import { IsEnum, IsNotEmpty, IsString } from "class-validator";
-import { RoleAccount } from "src/common/types";
+import { RoleUser } from "src/common/types";
 
 export class SignupDto {
   @ApiProperty()
@@ -27,10 +27,10 @@ export class SignupDto {
   image?: string;
 
   @ApiProperty({
-    enum: RoleAccount,
-    example: RoleAccount.Member,
+    enum: RoleUser,
+    example: RoleUser.MEMBER,
   })
-  @IsEnum(RoleAccount)
+  @IsEnum(RoleUser)
   @IsNotEmpty()
-  role?: RoleAccount;
+  role?: RoleUser;
 }

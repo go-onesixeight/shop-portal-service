@@ -28,6 +28,7 @@ import { Member } from "./modules/auth/entities/member.entity";
         database: process.env.POSTGRES_DB,
         timezone: process.env.POSTGRES_TIMEZONE,
         entities: [Member],
+        autoLoadEntities: true,
         synchronize: true,
       }),
     }),

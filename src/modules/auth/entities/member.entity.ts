@@ -1,4 +1,4 @@
-import { RoleAccount } from "src/common/types";
+import { RoleUser, Statused } from "src/common/types";
 import {
   Column,
   CreateDateColumn,
@@ -6,7 +6,7 @@ import {
   PrimaryGeneratedColumn,
 } from "typeorm";
 
-@Entity("member")
+@Entity({ name: "member" })
 export class Member {
   @PrimaryGeneratedColumn() id: number;
 
@@ -28,12 +28,29 @@ export class Member {
   @Column({
     name: "role",
     type: "enum",
-    enum: RoleAccount,
-    default: RoleAccount.Member,
+    enum: RoleUser,
+    default: RoleUser.MEMBER,
   })
-  role?: RoleAccount;
+  role?: RoleUser;
 
-  @CreateDateColumn() created?: Date;
+  @Column({
+    name: "status",
+    type: "enum",
+    enum: Statused,
+    default: Statused.CREATED,
+  })
+  status?: Statused;
 
-  @CreateDateColumn() updated?: Date;
+  @Column({ nullable: true })
+  emailReferenceNo?: string;
+
+  @Column({ nullable: true })
+  otp?: string;
+
+  @Column({ nullable: true })
+  otpReferenceNo?: string;
+
+  @CreateDateColumn({ type: "timestamp" }) created?: Date;
+
+  @CreateDateColumn({ type: "timestamp" }) updated?: Date;
 }

@@ -8,6 +8,7 @@ import { Member } from "./entities/member.entity";
 import { IFromResponses, ISendMail } from "src/common/interfaces";
 import { ForgotPasswordDto } from "./dto/forgot-password.dto";
 import { MailService } from "src/mail/mail.service";
+import { ResetPasswordDto } from "./dto/reset-password.dto";
 
 @Injectable()
 export class AuthService {
@@ -98,6 +99,24 @@ export class AuthService {
       }
 
       const { email, username, ...result } = findEmail;
+
+      const getEmailReferenceNo = this.sharedService.generateRandomPassword(5);
+
+      const createMember = {
+        ...findEmail,
+        emailReferenceNo: getEmailReferenceNo,
+      };
+
+      const saveMember = await this.memberRepository.save(createMember);
+      if (!this.sharedService.isObjectEmpty(saveMember)) {
+        return this.sharedService.returnResponse(
+          false,
+          HttpStatus.BAD_REQUEST,
+          this.sharedService.statusText(HttpStatus.BAD_REQUEST),
+          saveMember,
+        ) as IFromResponses;
+      }
+
       const emailEncrypt = this.sharedService.encrypt(email);
       const emailBase64 = this.sharedService.encryptBase64(emailEncrypt);
 
@@ -182,6 +201,92 @@ export class AuthService {
         null,
         message,
       ) as IFromResponses;
+    }
+  }
+
+  async resetPassword(resetPasswordDto: ResetPasswordDto) {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const {
+        email,
+        emailReferenceNo,
+        password,
+        confirmPassword,
+        newPassword,
+        newConfirmPassword,
+      } = resetPasswordDto;
+
+      if (password !== confirmPassword) {
+        return this.sharedService.returnResponse(
+          false,
+          HttpStatus.BAD_REQUEST,
+          this.sharedService.statusText(HttpStatus.BAD_REQUEST),
+          resetPasswordDto,
+        ) as IFromResponses;
+      }
+
+      if (newPassword !== newConfirmPassword) {
+        return this.sharedService.returnResponse(
+          false,
+          HttpStatus.BAD_REQUEST,
+          this.sharedService.statusText(HttpStatus.BAD_REQUEST),
+          resetPasswordDto,
+        ) as IFromResponses;
+      }
+
+      const findEmailAndEmailRef = await this.memberRepository.findOne({
+        where: [{ email }, { emailReferenceNo }],
+      });
+
+      if (!findEmailAndEmailRef) {
+        return this.sharedService.returnResponse(
+          false,
+          HttpStatus.NOT_FOUND,
+          this.sharedService.statusText(HttpStatus.NOT_FOUND),
+          findEmailAndEmailRef,
+        ) as IFromResponses;
+      }
+
+      const updateMember = {
+        ...findEmailAndEmailRef,
+        password: this.sharedService.encrypt(newPassword),
+        confirmPassword: this.sharedService.encrypt(newConfirmPassword),
+      };
+
+      const saveMember = await this.memberRepository.save(updateMember);
+
+      if (!this.sharedService.isObjectEmpty(saveMember)) {
+        return this.sharedService.returnResponse(
+          false,
+          HttpStatus.BAD_REQUEST,
+          this.sharedService.statusText(HttpStatus.BAD_REQUEST),
+          saveMember,
+        ) as IFromResponses;
+      }
+
+      await queryRunner.commitTransaction();
+      return this.sharedService.returnResponse(
+        true,
+        HttpStatus.CREATED,
+        this.sharedService.statusText(HttpStatus.CREATED),
+        saveMember,
+      ) as IFromResponses;
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      const { message } = error as { message: string };
+      Logger.log(`[${this.resetPassword.name}] => error ${message}`);
+      return this.sharedService.returnResponse(
+        false,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+        this.sharedService.statusText(HttpStatus.INTERNAL_SERVER_ERROR),
+        null,
+        message,
+      ) as IFromResponses;
+    } finally {
+      await queryRunner.release();
     }
   }
 

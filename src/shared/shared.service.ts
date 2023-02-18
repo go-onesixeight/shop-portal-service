@@ -110,6 +110,17 @@ export class SharedService {
     return base;
   }
 
+  generateRandomPassword(len?: number) {
+    const length = len ?? 8;
+    const charset =
+      "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    let retVal = "";
+    for (let i = 0, n = charset.length; i < length; ++i) {
+      retVal += charset.charAt(Math.floor(Math.random() * n));
+    }
+    return retVal;
+  }
+
   statusText(statusCode: number) {
     switch (statusCode) {
       case HttpStatus.CONTINUE:
