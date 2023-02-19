@@ -13,16 +13,23 @@ import { ApiBody, ApiTags } from "@nestjs/swagger";
 import { SignupDto } from "./dto/register.dto";
 import { ForgotPasswordDto } from "./dto/forgot-password.dto";
 import { ResetPasswordDto } from "./dto/reset-password.dto";
+import { ChangePasswordDto } from "./dto/change-password.dto";
 
 @ApiTags("auth")
 @Controller("auth")
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  @Post("/signin")
+  @ApiBody({ type: SignupDto })
+  async signIn(@Body() signupDto: SignupDto) {
+    return await this.authService.signIn();
+  }
+
   @Post("/signup")
   @ApiBody({ type: SignupDto })
   async create(@Body() signupDto: SignupDto) {
-    return await this.authService.createMember(signupDto);
+    return await this.authService.signUp(signupDto);
   }
 
   @Post("/forgot-password")
@@ -35,6 +42,18 @@ export class AuthController {
   @ApiBody({ type: ResetPasswordDto })
   async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
     return await this.authService.resetPassword(resetPasswordDto);
+  }
+
+  @Post("/change-password")
+  @ApiBody({ type: ChangePasswordDto })
+  async changePassword(@Body() changePasswordDto: ChangePasswordDto) {
+    return await this.authService.changePassword(changePasswordDto);
+  }
+
+  @Post("/profile")
+  @ApiBody({ type: "" })
+  async profile(@Body() profileDto: any) {
+    return await this.authService.getProfile(profileDto);
   }
 
   @Get()

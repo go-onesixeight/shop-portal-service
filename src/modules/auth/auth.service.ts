@@ -9,6 +9,7 @@ import { IFromResponses, ISendMail } from "src/common/interfaces";
 import { ForgotPasswordDto } from "./dto/forgot-password.dto";
 import { MailService } from "src/mail/mail.service";
 import { ResetPasswordDto } from "./dto/reset-password.dto";
+import { ChangePasswordDto } from "./dto/change-password.dto";
 
 @Injectable()
 export class AuthService {
@@ -20,14 +21,35 @@ export class AuthService {
     private readonly memberRepository: Repository<Member>,
   ) {}
 
-  async createMember(signupDto: SignupDto): Promise<IFromResponses> {
+  async signIn() {
+    try {
+      // const accessToken = this.jwtService.sign(user);
+      // return this.sharedService.returnResponse(
+      //   true,
+      //   HttpStatus.CREATED,
+      //   this.sharedService.statusText(HttpStatus.CREATED),
+      //   accessToken,
+      // ) as IFromResponses;
+    } catch (error) {
+      const errorMsg = this.sharedService.errorMessage(error);
+      Logger.log(`[${this.signIn.name}] => error ${errorMsg}`);
+      return this.sharedService.returnResponse(
+        false,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+        this.sharedService.statusText(HttpStatus.INTERNAL_SERVER_ERROR),
+        null,
+        errorMsg,
+      ) as IFromResponses;
+    }
+  }
+
+  async signUp(signupDto: SignupDto): Promise<IFromResponses> {
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
+
     try {
-      Logger.log(
-        `[${this.createMember.name}] => body ${JSON.stringify(signupDto)}`,
-      );
+      Logger.log(`[${this.signUp.name}] => body ${JSON.stringify(signupDto)}`);
 
       if (signupDto?.password !== signupDto?.confirmPassword) {
         return this.sharedService.returnResponse(
@@ -57,7 +79,7 @@ export class AuthService {
       }
 
       Logger.log(
-        `[${this.createMember.name}] => response ${JSON.stringify(saveMember)}`,
+        `[${this.signUp.name}] => response ${JSON.stringify(saveMember)}`,
       );
 
       await queryRunner.commitTransaction();
@@ -68,15 +90,15 @@ export class AuthService {
         saveMember,
       ) as IFromResponses;
     } catch (error) {
+      const errorMsg = this.sharedService.errorMessage(error);
+      Logger.log(`[${this.signUp.name}] => error ${errorMsg}`);
       await queryRunner.rollbackTransaction();
-      const { message } = error as { message: string };
-      Logger.log(`[${this.createMember.name}] => error ${message}`);
       return this.sharedService.returnResponse(
         false,
         HttpStatus.INTERNAL_SERVER_ERROR,
         this.sharedService.statusText(HttpStatus.INTERNAL_SERVER_ERROR),
         null,
-        message,
+        errorMsg,
       ) as IFromResponses;
     } finally {
       await queryRunner.release();
@@ -84,6 +106,9 @@ export class AuthService {
   }
 
   async forgotPassword(forgotPasswordDto: ForgotPasswordDto) {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
     try {
       const findEmail = await this.memberRepository.findOne({
         where: { email: forgotPasswordDto?.email },
@@ -102,12 +127,12 @@ export class AuthService {
 
       const getEmailReferenceNo = this.sharedService.generateRandomPassword(5);
 
-      const createMember = {
+      const updateMember: Member = {
         ...findEmail,
         emailReferenceNo: getEmailReferenceNo,
       };
 
-      const saveMember = await this.memberRepository.save(createMember);
+      const saveMember = await this.memberRepository.save(updateMember);
       if (!this.sharedService.isObjectEmpty(saveMember)) {
         return this.sharedService.returnResponse(
           false,
@@ -184,6 +209,7 @@ export class AuthService {
       );
 
       if (sendMail[0]?.statusCode === 202) {
+        await queryRunner.commitTransaction();
         return this.sharedService.returnResponse(
           true,
           HttpStatus.ACCEPTED,
@@ -192,15 +218,18 @@ export class AuthService {
         ) as IFromResponses;
       }
     } catch (error) {
-      const { message } = error as { message: string };
-      Logger.log(`[${this.forgotPassword.name}] => error ${message}`);
+      const errorMsg = this.sharedService.errorMessage(error);
+      Logger.log(`[${this.forgotPassword.name}] => error ${errorMsg}`);
+      await queryRunner.rollbackTransaction();
       return this.sharedService.returnResponse(
         false,
         HttpStatus.INTERNAL_SERVER_ERROR,
         this.sharedService.statusText(HttpStatus.INTERNAL_SERVER_ERROR),
         null,
-        message,
+        errorMsg,
       ) as IFromResponses;
+    } finally {
+      await queryRunner.release();
     }
   }
 
@@ -250,7 +279,7 @@ export class AuthService {
         ) as IFromResponses;
       }
 
-      const updateMember = {
+      const updateMember: Member = {
         ...findEmailAndEmailRef,
         password: this.sharedService.encrypt(newPassword),
         confirmPassword: this.sharedService.encrypt(newConfirmPassword),
@@ -275,18 +304,143 @@ export class AuthService {
         saveMember,
       ) as IFromResponses;
     } catch (error) {
+      const errorMsg = this.sharedService.errorMessage(error);
+      Logger.log(`[${this.resetPassword.name}] => error ${errorMsg}`);
       await queryRunner.rollbackTransaction();
-      const { message } = error as { message: string };
-      Logger.log(`[${this.resetPassword.name}] => error ${message}`);
       return this.sharedService.returnResponse(
         false,
         HttpStatus.INTERNAL_SERVER_ERROR,
         this.sharedService.statusText(HttpStatus.INTERNAL_SERVER_ERROR),
         null,
-        message,
+        errorMsg,
       ) as IFromResponses;
     } finally {
       await queryRunner.release();
+    }
+  }
+
+  async changePassword(
+    changePasswordDto: ChangePasswordDto,
+  ): Promise<IFromResponses> {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const {
+        email,
+        currentPassword,
+        confirmCurrentPassword,
+        newPassword,
+        confirmNewPassword,
+      } = changePasswordDto;
+
+      const findEmail = await this.memberRepository.findOne({
+        where: [{ email }],
+      });
+
+      if (!findEmail) {
+        return this.sharedService.returnResponse(
+          false,
+          HttpStatus.NOT_FOUND,
+          this.sharedService.statusText(HttpStatus.NOT_FOUND),
+          findEmail,
+        ) as IFromResponses;
+      }
+
+      const decryptPassword = this.sharedService.decrypt(findEmail.password);
+      const decryptConfirmPassword = this.sharedService.decrypt(
+        findEmail.confirmPassword,
+      );
+
+      if (
+        currentPassword !== decryptPassword &&
+        confirmCurrentPassword !== decryptConfirmPassword
+      ) {
+        return this.sharedService.returnResponse(
+          false,
+          HttpStatus.BAD_REQUEST,
+          this.sharedService.statusText(HttpStatus.BAD_REQUEST),
+          findEmail,
+        ) as IFromResponses;
+      }
+
+      const encryptNewPassword = this.sharedService.encrypt(newPassword);
+      const encryptNewConfirmPassword =
+        this.sharedService.encrypt(confirmNewPassword);
+
+      const updateMember: Member = {
+        ...findEmail,
+        password: encryptNewPassword,
+        confirmPassword: encryptNewConfirmPassword,
+      };
+
+      const saveMember = await this.memberRepository.save(updateMember);
+
+      if (!this.sharedService.isObjectEmpty(saveMember)) {
+        return this.sharedService.returnResponse(
+          false,
+          HttpStatus.BAD_REQUEST,
+          this.sharedService.statusText(HttpStatus.BAD_REQUEST),
+          saveMember,
+        ) as IFromResponses;
+      }
+
+      await queryRunner.commitTransaction();
+
+      return this.sharedService.returnResponse(
+        true,
+        HttpStatus.CREATED,
+        this.sharedService.statusText(HttpStatus.CREATED),
+        saveMember,
+      ) as IFromResponses;
+    } catch (error) {
+      const errorMsg = this.sharedService.errorMessage(error);
+      Logger.log(`[${this.resetPassword.name}] => error ${errorMsg}`);
+      await queryRunner.rollbackTransaction();
+      return this.sharedService.returnResponse(
+        false,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+        this.sharedService.statusText(HttpStatus.INTERNAL_SERVER_ERROR),
+        null,
+        errorMsg,
+      ) as IFromResponses;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  async getProfile(email?) {
+    try {
+      const findEmail = await this.memberRepository.findOne({
+        where: { email },
+      });
+
+      if (!findEmail) {
+        return this.sharedService.returnResponse(
+          false,
+          HttpStatus.NOT_FOUND,
+          this.sharedService.statusText(HttpStatus.NOT_FOUND),
+          findEmail,
+        ) as IFromResponses;
+      }
+
+      return this.sharedService.returnResponse(
+        true,
+        HttpStatus.CREATED,
+        this.sharedService.statusText(HttpStatus.CREATED),
+        findEmail,
+      ) as IFromResponses;
+    } catch (error) {
+      const errorMsg = this.sharedService.errorMessage(error);
+      Logger.log(`[${this.getProfile.name}] => error ${errorMsg}`);
+      return this.sharedService.returnResponse(
+        false,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+        this.sharedService.statusText(HttpStatus.INTERNAL_SERVER_ERROR),
+        null,
+        errorMsg,
+      ) as IFromResponses;
     }
   }
 

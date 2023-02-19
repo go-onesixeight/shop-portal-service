@@ -121,6 +121,11 @@ export class SharedService {
     return retVal;
   }
 
+  errorMessage(error: any) {
+    const { message } = error as { message: string };
+    return message;
+  }
+
   statusText(statusCode: number) {
     switch (statusCode) {
       case HttpStatus.CONTINUE:
